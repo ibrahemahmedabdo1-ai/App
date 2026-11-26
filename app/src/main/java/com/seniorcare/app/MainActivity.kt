@@ -5,6 +5,7 @@ import android.app.*
 import android.content.*
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
@@ -56,83 +57,160 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun shape(color: Int, radius: Float, stroke: Int = Color.TRANSPARENT): GradientDrawable =
+        GradientDrawable().apply {
+            setColor(color)
+            cornerRadius = radius
+            if (stroke != Color.TRANSPARENT) setStroke(1, stroke)
+        }
+
     private fun basePage(title: String): LinearLayout {
         dark = prefs.getBoolean("dark", false)
         fontScale = prefs.getFloat("font_scale", 1.0f)
-        val bg = if (dark) Color.rgb(22, 28, 38) else Color.rgb(246, 248, 251)
-        val fg = if (dark) Color.WHITE else Color.rgb(25, 37, 54)
-        val scroll = ScrollView(this)
+        val bg = if (dark) Color.rgb(16, 27, 39) else Color.rgb(244, 248, 250)
+        val fg = if (dark) Color.WHITE else Color.rgb(24, 48, 62)
+        val scroll = ScrollView(this).apply { clipToPadding = false; setFillViewport(true) }
         root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(18, 18, 18, 28)
+            setPadding(20, 22, 20, 32)
             setBackgroundColor(bg)
             layoutDirection = View.LAYOUT_DIRECTION_LOCALE
         }
         scroll.addView(root)
         setContentView(scroll)
-        text(root, title, 26f, true, fg)
+        text(root, tr("رفيق  •  رعاية واطمئنان", "RAFIQ  •  CARE & WELLNESS"), 13f, true,
+            if (dark) Color.rgb(111, 211, 196) else Color.rgb(13, 139, 128))
+        text(root, title, 27f, true, fg)
+        val divider = View(this).apply { setBackgroundColor(if (dark) Color.rgb(48, 69, 81) else Color.rgb(220, 231, 234)) }
+        root.addView(divider, LinearLayout.LayoutParams(-1, 1).apply { setMargins(0, 4, 0, 14) })
         return root
     }
 
     private fun text(parent: LinearLayout, value: String, size: Float = 16f, bold: Boolean = false, color: Int? = null) {
-        val c = color ?: if (dark) Color.WHITE else Color.rgb(45, 58, 76)
+        val c = color ?: if (dark) Color.rgb(232, 241, 244) else Color.rgb(55, 76, 88)
         parent.addView(TextView(this).apply {
             text = value
             textSize = size * fontScale
             setTextColor(c)
-            if (bold) setTypeface(typeface, Typeface.BOLD)
-            setPadding(4, 9, 4, 9)
-            gravity = Gravity.START
+            if (bold) setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD))
+            setLineSpacing(2f, 1.05f)
+            setPadding(5, 8, 5, 8)
+            gravity = Gravity.START or Gravity.CENTER_VERTICAL
         })
     }
 
     private fun button(parent: LinearLayout, label: String, color: Int? = null, action: () -> Unit): Button {
+        val fill = color ?: if (dark) Color.rgb(25, 133, 126) else Color.rgb(17, 132, 123)
         val b = Button(this).apply {
             text = label
             textSize = 16f * fontScale
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             isAllCaps = false
             setTextColor(Color.WHITE)
-            setBackgroundColor(color ?: Color.rgb(35, 105, 145))
-            setPadding(10, 12, 10, 12)
+            background = shape(fill, 22f)
+            elevation = 3f
+            minHeight = (58 * resources.displayMetrics.density).toInt()
+            setPadding(18, 12, 18, 12)
             layoutDirection = View.LAYOUT_DIRECTION_LOCALE
+            gravity = Gravity.CENTER
             setOnClickListener { action() }
         }
-        parent.addView(b, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 5, 0, 7) })
+        parent.addView(b, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 7, 0, 9) })
         return b
     }
 
     private fun section(parent: LinearLayout, title: String) {
-        text(parent, title, 19f, true, if (dark) Color.rgb(132, 208, 236) else Color.rgb(25, 105, 145))
+        val tv = TextView(this).apply {
+            text = title
+            textSize = 18f * fontScale
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(if (dark) Color.rgb(135, 220, 207) else Color.rgb(17, 111, 107))
+            background = shape(if (dark) Color.rgb(27, 52, 62) else Color.rgb(226, 242, 239), 16f)
+            setPadding(14, 11, 14, 11)
+        }
+        parent.addView(tv, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 12, 0, 6) })
+    }
+
+    private fun metric(parent: LinearLayout, value: String, label: String, accent: Int) {
+        val tile = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            background = shape(if (dark) Color.rgb(29, 43, 55) else Color.WHITE, 18f,
+                if (dark) Color.rgb(52, 73, 83) else Color.rgb(225, 235, 237))
+            setPadding(8, 12, 8, 12)
+        }
+        val number = TextView(this).apply {
+            text = value; textSize = 24f * fontScale
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            setTextColor(accent); gravity = Gravity.CENTER
+        }
+        val caption = TextView(this).apply {
+            text = label; textSize = 12f * fontScale
+            setTextColor(if (dark) Color.LTGRAY else Color.rgb(91, 111, 121))
+            gravity = Gravity.CENTER
+        }
+        tile.addView(number); tile.addView(caption)
+        parent.addView(tile, LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(3, 5, 3, 10) })
     }
 
     private fun showHome() {
         val p = profile()
-        val page = basePage(tr("رعاية كبار السن", "Senior Care"))
-        text(page, tr("مساعدك اليومي للأدوية والصحة والاطمئنان", "Your daily companion for medication, health and reassurance"), 15f)
+        val page = basePage(tr("الرئيسية", "Home"))
         val name = p.optString("name", "")
-        text(page, if (name.isBlank()) tr("أهلًا بك. أنشئ ملفك الصحي للبدء.", "Welcome. Create your health profile to begin.") else tr("أهلًا، $name", "Welcome, $name"), 21f, true)
+        val greeting = if (name.isBlank()) tr("أهلًا بك في رفيق", "Welcome to Rafiq") else tr("أهلًا، $name", "Welcome, $name")
+        val hero = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = shape(if (dark) Color.rgb(24, 73, 76) else Color.rgb(222, 243, 238), 24f)
+            setPadding(18, 16, 18, 16)
+        }
+        val welcome = TextView(this).apply {
+            text = greeting; textSize = 22f * fontScale
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            setTextColor(if (dark) Color.WHITE else Color.rgb(20, 73, 70))
+        }
+        hero.addView(welcome)
+        val sub = TextView(this).apply {
+            text = tr("رفيقك اليومي للأدوية والصحة والاطمئنان", "Your daily companion for medication, health and reassurance")
+            textSize = 14f * fontScale
+            setTextColor(if (dark) Color.rgb(213, 236, 232) else Color.rgb(58, 104, 99))
+            setPadding(0, 6, 0, 0)
+        }
+        hero.addView(sub)
+        page.addView(hero, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 5, 0, 14) })
+
         val meds = arr("medications")
         val logs = arr("dose_logs")
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
         var taken = 0
         var missed = 0
+        var unconfirmed = 0
         for (i in 0 until logs.length()) {
             val item = logs.optJSONObject(i) ?: continue
             if (item.optString("at").startsWith(today)) {
-                if (item.optString("status") == "taken") taken++
-                if (item.optString("status") == "not_taken") missed++
+                when (item.optString("status")) {
+                    "taken" -> taken++
+                    "not_taken" -> missed++
+                    else -> unconfirmed++
+                }
             }
         }
-        section(page, tr("ملخص اليوم", "Today's summary"))
-        text(page, tr("الأدوية المسجلة: ${meds.length()}  •  تم تأكيدها: $taken  •  لم تؤخذ: $missed", "Medicines: ${meds.length()}  •  Confirmed: $taken  •  Not taken: $missed"), 16f, true)
-        text(page, tr("عدم تسجيل الجرعة لا يعني بالضرورة عدم تناولها.", "An unconfirmed dose does not necessarily mean it was not taken."), 13f)
-        button(page, tr("الأدوية والتذكيرات", "Medicines & reminders")) { showMedicines() }
-        button(page, tr("السجل والمواعيد", "History & appointments")) { showHistory() }
-        button(page, tr("القياسات الصحية", "Health measurements")) { showHealth() }
-        button(page, tr("الملف الطبي وبطاقة الطوارئ", "Medical profile & emergency card")) { showProfile() }
-        button(page, tr("إعدادات العرض واللغة", "Display & language settings")) { showSettings() }
-        section(page, tr("الطوارئ", "Emergency"))
-        val sos = button(page, tr("اضغط مطولًا لطلب المساعدة  🆘", "Press and hold for help  🆘"), Color.rgb(190, 45, 48)) {}
+        section(page, tr("ملخص اليوم", "Today's overview"))
+        val metrics = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        metric(metrics, meds.length().toString(), tr("الأدوية", "Medicines"), if (dark) Color.rgb(111, 211, 196) else Color.rgb(17, 132, 123))
+        metric(metrics, taken.toString(), tr("تم التأكيد", "Confirmed"), Color.rgb(43, 153, 111))
+        metric(metrics, missed.toString(), tr("لم تؤخذ", "Not taken"), Color.rgb(205, 119, 68))
+        page.addView(metrics)
+        text(page, tr("الجرعات غير المؤكدة: $unconfirmed. عدم تسجيل الجرعة لا يعني بالضرورة عدم تناولها.", "Unconfirmed doses: $unconfirmed. No response does not necessarily mean the dose was missed."), 13f)
+
+        section(page, tr("الرعاية اليومية", "Daily care"))
+        button(page, tr("💊  الأدوية والتذكيرات", "💊  Medicines & reminders")) { showMedicines() }
+        button(page, tr("📋  السجل والمواعيد", "📋  History & appointments")) { showHistory() }
+        button(page, tr("♥  القياسات الصحية", "♥  Health measurements")) { showHealth() }
+        button(page, tr("🪪  الملف الطبي وبطاقة الطوارئ", "🪪  Medical profile & emergency card")) { showProfile() }
+        button(page, tr("⚙  إعدادات العرض واللغة", "⚙  Display & language settings")) { showSettings() }
+
+        section(page, tr("الطوارئ والاطمئنان", "Emergency & reassurance"))
+        val sos = button(page, tr("🆘  اضغط مطولًا لطلب المساعدة", "🆘  Press and hold for help"), Color.rgb(190, 54, 62)) {}
         val runnable = Runnable { sos.isPressed = false; showSosConfirm() }
         sos.setOnTouchListener { v, event ->
             when (event.action) {
@@ -141,7 +219,7 @@ class MainActivity : Activity() {
                 else -> true
             }
         }
-        button(page, tr("أنا بخير ❤️", "I'm okay ❤️")) {
+        button(page, tr("❤️  أنا بخير", "❤️  I'm okay"), if (dark) Color.rgb(55, 105, 113) else Color.rgb(76, 130, 137)) {
             val msg = tr("أنا بخير الآن.", "I'm okay now.")
             val phone = p.optString("contact", "")
             if (phone.isNotBlank()) openSms(phone, msg) else showInfo(tr("لا توجد جهة اتصال مسجلة. يمكنك إضافة رقم في الملف الطبي.", "No emergency contact saved. Add a number in your medical profile."))
@@ -151,18 +229,62 @@ class MainActivity : Activity() {
 
     private fun showMedicines() {
         val page = basePage(tr("الأدوية والتذكيرات", "Medicines & reminders"))
-        button(page, tr("+ إضافة دواء", "+ Add medicine")) { addMedicine() }
+        text(page, tr("أضف الأدوية ومواعيدها لتصلك تنبيهات واضحة في الوقت المحدد.", "Add medicines and schedules to receive clear reminders on time."), 14f)
+        button(page, tr("+ إضافة دواء جديد", "+ Add a new medicine")) { addMedicine() }
         val meds = arr("medications")
-        if (meds.length() == 0) text(page, tr("لم تتم إضافة أدوية بعد.", "No medicines added yet."))
+        if (meds.length() == 0) {
+            val empty = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                background = shape(if (dark) Color.rgb(29, 43, 55) else Color.WHITE, 20f,
+                    if (dark) Color.rgb(52, 73, 83) else Color.rgb(225, 235, 237))
+                setPadding(20, 22, 20, 22)
+            }
+            val title = TextView(this).apply {
+                text = tr("لا توجد أدوية مسجلة", "No medicines yet")
+                textSize = 19f * fontScale
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(if (dark) Color.WHITE else Color.rgb(35, 65, 76))
+                gravity = Gravity.CENTER
+            }
+            val hint = TextView(this).apply {
+                text = tr("ابدأ بإضافة أول دواء ومواعيده.", "Start by adding your first medicine and its schedule.")
+                textSize = 14f * fontScale
+                setTextColor(if (dark) Color.LTGRAY else Color.GRAY)
+                gravity = Gravity.CENTER
+                setPadding(0, 8, 0, 0)
+            }
+            empty.addView(title); empty.addView(hint)
+            page.addView(empty, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 10, 0, 14) })
+        }
         for (i in 0 until meds.length()) {
             val m = meds.optJSONObject(i) ?: continue
-            section(page, m.optString("name"))
-            text(page, tr("الموعد: ${m.optString("time")}  •  ${m.optString("note")}", "Time: ${m.optString("time")}  •  ${m.optString("note")}"))
-            button(page, tr("تأكيد أنني أخذت الجرعة", "Confirm dose taken")) { logDose(m.optString("name"), "taken"); showMedicines() }
-            button(page, tr("لم آخذها بعد", "Not taken yet")) { logDose(m.optString("name"), "not_taken"); showMedicines() }
-            button(page, tr("حذف الدواء", "Delete medicine"), Color.rgb(130, 75, 75)) { deleteMedicine(m.optString("id")); showMedicines() }
+            val card = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = shape(if (dark) Color.rgb(29, 43, 55) else Color.WHITE, 20f,
+                    if (dark) Color.rgb(52, 73, 83) else Color.rgb(225, 235, 237))
+                setPadding(15, 12, 15, 12)
+            }
+            val name = TextView(this).apply {
+                text = "💊  " + m.optString("name")
+                textSize = 20f * fontScale
+                typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+                setTextColor(if (dark) Color.WHITE else Color.rgb(26, 61, 73))
+            }
+            card.addView(name)
+            val details = TextView(this).apply {
+                text = tr("الموعد: ${m.optString("time")}  •  ${m.optString("note")}", "Time: ${m.optString("time")}  •  ${m.optString("note")}")
+                textSize = 14f * fontScale
+                setTextColor(if (dark) Color.rgb(190, 207, 214) else Color.rgb(91, 111, 121))
+                setPadding(0, 6, 0, 7)
+            }
+            card.addView(details)
+            button(card, tr("✓  أخذت الجرعة", "✓  I took this dose"), Color.rgb(43, 145, 105)) { logDose(m.optString("name"), "taken"); showMedicines() }
+            button(card, tr("لم آخذها بعد", "Not taken yet"), Color.rgb(190, 119, 65)) { logDose(m.optString("name"), "not_taken"); showMedicines() }
+            button(card, tr("حذف الدواء", "Delete medicine"), Color.rgb(133, 76, 82)) { deleteMedicine(m.optString("id")); showMedicines() }
+            page.addView(card, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 9, 0, 10) })
         }
-        button(page, tr("رجوع للرئيسية", "Back to home")) { showHome() }
+        button(page, tr("رجوع للرئيسية", "Back to home"), if (dark) Color.rgb(55, 80, 92) else Color.rgb(91, 116, 126)) { showHome() }
     }
 
     private fun addMedicine() {
