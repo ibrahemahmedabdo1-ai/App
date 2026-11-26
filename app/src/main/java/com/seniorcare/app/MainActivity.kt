@@ -86,7 +86,7 @@ class MainActivity : Activity() {
         })
     }
 
-    private fun button(parent: LinearLayout, label: String, action: () -> Unit, color: Int? = null): Button {
+    private fun button(parent: LinearLayout, label: String, color: Int? = null, action: () -> Unit): Button {
         val b = Button(this).apply {
             text = label
             textSize = 16f * fontScale
@@ -132,7 +132,7 @@ class MainActivity : Activity() {
         button(page, tr("الملف الطبي وبطاقة الطوارئ", "Medical profile & emergency card")) { showProfile() }
         button(page, tr("إعدادات العرض واللغة", "Display & language settings")) { showSettings() }
         section(page, tr("الطوارئ", "Emergency"))
-        val sos = button(page, tr("اضغط مطولًا لطلب المساعدة  🆘", "Press and hold for help  🆘"), {}, Color.rgb(190, 45, 48))
+        val sos = button(page, tr("اضغط مطولًا لطلب المساعدة  🆘", "Press and hold for help  🆘"), Color.rgb(190, 45, 48)) {}
         val runnable = Runnable { sos.isPressed = false; showSosConfirm() }
         sos.setOnTouchListener { v, event ->
             when (event.action) {
@@ -160,7 +160,7 @@ class MainActivity : Activity() {
             text(page, tr("الموعد: ${m.optString("time")}  •  ${m.optString("note")}", "Time: ${m.optString("time")}  •  ${m.optString("note")}"))
             button(page, tr("تأكيد أنني أخذت الجرعة", "Confirm dose taken")) { logDose(m.optString("name"), "taken"); showMedicines() }
             button(page, tr("لم آخذها بعد", "Not taken yet")) { logDose(m.optString("name"), "not_taken"); showMedicines() }
-            button(page, tr("حذف الدواء", "Delete medicine"), { deleteMedicine(m.optString("id")); showMedicines() }, Color.rgb(130, 75, 75))
+            button(page, tr("حذف الدواء", "Delete medicine"), Color.rgb(130, 75, 75)) { deleteMedicine(m.optString("id")); showMedicines() }
         }
         button(page, tr("رجوع للرئيسية", "Back to home")) { showHome() }
     }
