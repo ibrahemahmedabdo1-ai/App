@@ -195,6 +195,7 @@ class MainActivity : Activity() {
         val a = arr("dose_logs")
         a.put(JSONObject().put("medicine", name).put("status", status).put("at", nowText()))
         saveArr("dose_logs", a)
+        AlarmTools.cancelRepeat(this, name)
         showInfo(if (status == "taken") tr("تم تسجيل تأكيد الجرعة.", "Dose confirmation saved.") else tr("تم تسجيل أنك لم تأخذها بعد.", "Saved as not taken yet."))
     }
 
@@ -364,12 +365,51 @@ object AlarmTools {
             } else am.setExact(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
         } catch (_: SecurityException) { am.set(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi) }
     }
+
+    fun scheduleRepeat(context: Context, name: String, time: String) {
+        val intent = Intent(context, MedicationAlarmReceiver::class.java)
+            .putExtra("medicine", name).putExtra("time", time).putExtra("repeat", true)
+        val pi = PendingIntent.getBroadcast(context, name.hashCode() xor 0x41A5, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val at = System.currentTimeMillis() + 10 * 60 * 1000L
+        try {
+            if (Build.VERSION.SDK_INT >= 23) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+            else am.setExact(AlarmManager.RTC_WAKEUP, at, pi)
+        } catch (_: SecurityException) { am.set(AlarmManager.RTC_WAKEUP, at, pi) }
+    }
+
+    fun cancelRepeat(context: Context, name: String) {
+        val intent = Intent(context, MedicationAlarmReceiver::class.java)
+        val pi = PendingIntent.getBroadcast(context, name.hashCode() xor 0x41A5, intent, PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)
+        if (pi != null) {
+            (context.getSystemService(Context.ALARM_SERVICE) as AlarmManager).cancel(pi)
+            pi.cancel()
+        }
+        (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(name.hashCode())
+    }
 }
 
 class MedicationAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val name = intent.getStringExtra("medicine") ?: "Medicine"
         val time = intent.getStringExtra("time") ?: ""
+        val repeat = intent.getBooleanExtra("repeat", false)
+        val prefs = context.getSharedPreferences("senior_care_store", Context.MODE_PRIVATE)
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        val logs = try { JSONArray(prefs.getString("dose_logs", "[]")) } catch (_: Exception) { JSONArray() }
+        var responded = false
+        for (i in 0 until logs.length()) {
+            val item = logs.optJSONObject(i) ?: continue
+            if (item.optString("medicine") == name && item.optString("at").startsWith(today) &&
+                (item.optString("status") == "taken" || item.optString("status") == "not_taken")) {
+                responded = true
+                break
+            }
+        }
+        if (responded) {
+            AlarmTools.cancelRepeat(context, name)
+            return
+        }
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= 26 && manager.getNotificationChannel("medication_reminders") == null) {
             manager.createNotificationChannel(NotificationChannel("medication_reminders", "Medication reminders", NotificationManager.IMPORTANCE_HIGH))
@@ -381,19 +421,20 @@ class MedicationAlarmReceiver : BroadcastReceiver() {
             .setContentText("$name  •  $time")
             .setAutoCancel(true).setContentIntent(pending).setPriority(Notification.PRIORITY_HIGH)
         manager.notify(name.hashCode(), notification.build())
+        AlarmTools.scheduleRepeat(context, name, time)
 
-        val prefs = context.getSharedPreferences("senior_care_store", Context.MODE_PRIVATE)
-        val meds = try { JSONArray(prefs.getString("medications", "[]")) } catch (_: Exception) { JSONArray() }
-        for (i in 0 until meds.length()) {
-            val med = meds.optJSONObject(i) ?: continue
-            if (med.optString("name") == name && med.optString("time") == time) {
-                AlarmTools.schedule(context, JSONObject(med.toString()))
-                break
+        if (!repeat) {
+            val meds = try { JSONArray(prefs.getString("medications", "[]")) } catch (_: Exception) { JSONArray() }
+            for (i in 0 until meds.length()) {
+                val med = meds.optJSONObject(i) ?: continue
+                if (med.optString("name") == name && med.optString("time") == time) {
+                    AlarmTools.schedule(context, JSONObject(med.toString()))
+                    break
+                }
             }
         }
     }
 }
-
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         val prefs = context.getSharedPreferences("senior_care_store", Context.MODE_PRIVATE)
